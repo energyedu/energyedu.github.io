@@ -26,7 +26,9 @@
     <a class="navbar-brand" href="javascript:void(0)" onclick="switchView('home')">
       <img src="https://drive.google.com/thumbnail?id=1_C4fwmeoYXHlZ_6hR27MgIp741YYaKw5&sz=w1000" alt="碳減活寶" height="40">
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link active" id="nav-home" onclick="switchView('home')">首頁</a></li>
@@ -44,29 +46,224 @@
 </nav>
 
 <div class="container py-4">
-  <div id="view-home">...</div>
-  <div id="view-plans" class="hidden">...</div>
-  <div id="view-forum" class="hidden">...</div>
-  <div id="view-profile" class="hidden">...</div>
+  
+  <div id="view-home">
+    <div class="hero-section rounded-3 p-5 mb-4" style="background-image: url('https://drive.google.com/thumbnail?id=1JCHmSsSTMlDpl-RUPPU62zg8uGnr4oia&sz=w1920'); background-size: cover; background-position: left bottom; min-height: 500px; display: flex; align-items: center; justify-content: flex-end; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.9);">
+        <div style="max-width: 600px; margin-right: 4rem;" class="text-start">
+          <h1 class="display-4 fw-bold mb-3">歡迎來到<br>碳減活寶教案資源網</h1>
+          <p class="fs-5 mb-4">分享教案、交流心得，讓孩子在遊戲中學習永續發展</p>
+          <div id="hero-btns">
+            <button class="btn btn-success btn-lg px-4 me-2" onclick="showAuthModal('register')">加入會員</button>
+            <button class="btn btn-light btn-lg px-4 shadow-sm" onclick="switchView('plans')">瀏覽教案</button>
+          </div>
+        </div>
+    </div>    
+    <h3 class="border-bottom pb-2 mb-3"><i class="bi bi-megaphone"></i> 最新公告</h3>
+    <div id="home-announce-list" class="list-group list-group-flush bg-white rounded shadow-sm"></div>
+    <div id="announce-pagination" class="mt-3"></div>
+
+    <h4 class="border-bottom pb-2 mb-3 mt-5 text-secondary"><i class="bi bi-clock-history"></i> 版本更新紀錄</h4>
+    <div id="home-version-list" class="table-responsive bg-white rounded shadow-sm p-3">載入中...</div>
+    <div id="version-pagination" class="mt-3"></div>
+  </div>
+
+  <div id="view-plans" class="hidden">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3><i class="bi bi-folder2-open"></i> 檔案資源</h3>
+      <button id="btn-add-plan" class="btn btn-success hidden" onclick="openPlanModal()">+ 上傳檔案</button>
+    </div>
+    <div id="plan-stats-bar" class="row g-3 mb-4 hidden"></div>
+    <div class="row mb-4 g-2 align-items-center">
+        <div class="col-md-auto">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-secondary active" onclick="filterPlans('all', this)">全部</button>
+                <button type="button" class="btn btn-outline-word" onclick="filterPlans('教案', this)">教案</button>
+                <button type="button" class="btn btn-outline-ppt" onclick="filterPlans('簡報', this)">簡報</button>
+            </div>
+        </div>
+        <div class="col-md-auto d-flex align-items-center">
+            <span class="text-secondary small fw-bold me-2">年級:</span>
+            <div class="btn-group btn-group-sm" id="plan-grade-filter"></div>
+        </div>
+        <div class="col-md">
+            <input type="text" class="form-control" placeholder="搜尋標題或作者..." oninput="handlePlanSearch(this.value)">
+        </div>
+    </div>
+    <div class="alert alert-info hidden" id="guest-plan-hint"><i class="bi bi-info-circle"></i> 您目前是訪客身份，僅能瀏覽公開檔案。</div>
+    <div id="plans-list" class="row g-4"></div>
+    <div id="plans-pagination"></div>
+  </div>
+
+  <div id="view-forum" class="hidden">
+    <div id="forum-list-view">
+      <div class="d-flex justify-content-between align-items-center mb-4"><h3><i class="bi bi-chat-dots"></i> 討論區</h3><button class="btn btn-primary" onclick="openThreadModal()">+ 發起討論</button></div>
+      <input type="text" class="form-control mb-3" placeholder="搜尋討論內容..." oninput="handleForumSearch(this.value)">
+      <div id="forum-threads" class="list-group shadow-sm"></div>
+      <div id="forum-pagination"></div>
+    </div>
+    <div id="forum-detail-view" class="hidden">
+      <button class="btn btn-outline-secondary mb-3" onclick="backToForumList()">← 返回列表</button>
+      <div class="card shadow-sm mb-4"><div class="card-body">
+          <div class="d-flex justify-content-between"><h2 id="detail-title" class="card-title fw-bold"></h2><div id="detail-actions"></div></div>
+          <div class="text-muted small mb-3">由 <span id="detail-author" class="text-primary"></span> 發布於 <span id="detail-date"></span> <span id="detail-status-badge"></span></div>
+          <div id="detail-content" class="card-text fs-5"></div>
+      </div></div>
+      <h5 class="mb-3">留言回覆</h5>
+      <div id="detail-comments" class="mb-4"></div>
+      <div class="card bg-light" id="comment-section">
+        <div class="card-body">
+            <div id="reply-indicator" class="mb-2 text-primary small hidden"></div>
+            <textarea id="comment-input" class="form-control mb-2" rows="3"></textarea>
+            <button class="btn btn-primary btn-sm float-end" onclick="submitComment()">送出回覆</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-profile" class="hidden">
+    <div class="row">
+      <div class="col-md-4 mb-4">
+        <div class="card text-center py-4 shadow-sm">
+          <div class="card-body">
+            <div class="display-1 text-secondary mb-2"><i class="bi bi-person-circle"></i></div>
+            <h4 id="profile-nickname">...</h4>
+            <p class="text-muted" id="profile-username"></p>
+            <button class="btn btn-outline-primary btn-sm mb-3" onclick="openEditProfile()">編輯資料</button>
+            <div class="text-start px-3 small text-secondary mt-3">
+              <div class="d-flex justify-content-between border-bottom py-2"><span>我的分享</span><span id="count-share">0</span></div>
+              <div class="d-flex justify-content-between border-bottom py-2"><span>我的典藏</span><span id="count-archive">0</span></div>
+              <div class="d-flex justify-content-between border-bottom py-2"><span>我的珍藏</span><span id="count-saved">0</span></div>
+              <div class="d-flex justify-content-between border-bottom py-2"><span>我的討論</span><span id="count-threads">0</span></div>
+              <div class="d-flex justify-content-between py-2"><span>我的回覆</span><span id="count-replies">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <ul class="nav nav-tabs" id="profileTabs">
+          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" onclick="changeProfileTab('plans')">我的分享</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" onclick="changeProfileTab('archived')">我的典藏</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" onclick="changeProfileTab('saved')">我的珍藏</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" onclick="changeProfileTab('threads')">我的討論</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" onclick="changeProfileTab('replies')">我的回覆</button></li>
+        </ul>
+        <div class="tab-content bg-white p-4 border border-top-0 rounded-bottom shadow-sm">
+          <div id="profile-filter-container" class="mb-3 d-flex align-items-center gap-3">
+             <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-secondary active" onclick="setProfileFilter('all', this)">全部</button>
+                <button type="button" class="btn btn-outline-word" onclick="setProfileFilter('教案', this)">教案</button>
+                <button type="button" class="btn btn-outline-ppt" onclick="setProfileFilter('簡報', this)">簡報</button>
+             </div>
+             <div id="profile-grade-filter" class="btn-group btn-group-sm"></div>
+          </div>
+          <div id="profile-list-container"></div>
+          <div id="profile-pagination-container" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<div class="modal fade" id="authModal">...</div>
-<div class="modal fade" id="planModal">...</div>
-<div class="modal fade" id="viewPlanModal">...</div>
-<div class="modal fade" id="threadModal">...</div>
-<div class="modal fade" id="profileEditModal">...</div>
-<div class="modal fade" id="msgModal">...</div>
-<div class="modal fade" id="confirmModal">...</div>
-<div class="modal fade" id="scoreDetailModal">...</div>
+<div class="modal fade" id="authModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <ul class="nav nav-pills w-100 nav-fill">
+          <li class="nav-item"><a class="nav-link active" id="tab-login" onclick="toggleAuthTab('login')">登入</a></li>
+          <li class="nav-item"><a class="nav-link" id="tab-register" onclick="toggleAuthTab('register')">註冊</a></li>
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="auth-error-msg" class="alert alert-danger hidden py-2 text-center small"></div>
+        <form id="form-login">
+          <div class="mb-3"><label>帳號</label><input name="username" class="form-control" required></div>
+          <div class="mb-3"><label>密碼</label><input name="password" type="password" class="form-control" required></div>
+          <button type="button" class="btn btn-success w-100" onclick="handleLogin()">登入</button>
+        </form>
+        <form id="form-register" class="hidden">
+          <div class="mb-3"><label>設定帳號</label><input id="reg-user" class="form-control" required></div>
+          <div class="mb-3"><label>設定密碼</label><input id="reg-pass" type="password" class="form-control" required></div>
+          <div class="mb-3"><label>您的暱稱</label><input id="reg-nick" class="form-control" required></div>
+          <div class="mb-3">
+            <label>電子郵件 (選填)</label>
+            <div class="input-group"><input id="reg-email" type="email" class="form-control"><button class="btn btn-outline-secondary" type="button" onclick="sendVCode('reg-email')">發送驗證碼</button></div>
+            <input id="reg-vcode" class="form-control mt-2 hidden" placeholder="驗證碼">
+          </div>
+          <button type="button" class="btn btn-primary w-100" onclick="handleRegister()">註冊</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="planModal"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="plan-modal-title">上傳檔案</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="plan-id">
+    <div class="row mb-2"><div class="col"><select id="plan-category" class="form-select"><option value="教案">教案</option><option value="簡報">簡報</option></select></div><div class="col"><select id="plan-access" class="form-select"><option value="member">僅限會員</option><option value="public">完全公開</option></select></div></div>
+    <div class="mb-2"><label class="small text-secondary">適用年級</label><div id="plan-grades-check"></div></div>
+    <input id="plan-title" class="form-control mb-2" placeholder="標題">
+    <textarea id="plan-content" class="form-control mb-2" rows="3" placeholder="內容簡介"></textarea>
+    <input id="plan-link" class="form-control mb-2" placeholder="雲端檔案連結">
+    <button class="btn btn-success w-100" onclick="submitPlan()">儲存</button>
+  </div>
+</div></div></div>
+
+<div class="modal fade" id="viewPlanModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="view-plan-title"></h5><div id="view-plan-actions"></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="mb-2"><span id="view-plan-badge"></span> <small id="view-plan-meta" class="text-muted"></small></div>
+    <div id="view-plan-grades" class="mb-2 small text-secondary"></div>
+    <div id="view-plan-content"></div>
+    <div id="view-plan-link" class="mt-3"></div>
+    <div class="mt-3 border-top pt-2"><button id="view-plan-share-btn" class="btn btn-sm btn-outline-primary w-100">複製分享連結</button></div>
+  </div>
+</div></div></div>
+
+<div class="modal fade" id="threadModal"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="thread-modal-title">發起討論</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="thread-id"><input id="thread-title" class="form-control mb-2" placeholder="標題"><textarea id="thread-content" class="form-control mb-2" rows="5"></textarea><button class="btn btn-primary w-100" onclick="submitThread()">發布</button></div>
+</div></div></div>
+
+<div class="modal fade" id="profileEditModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">修改資料</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="mb-3"><label>新暱稱</label><input id="edit-nick" class="form-control"></div>
+    <div class="mb-3"><label>新密碼 (不改則留空)</label><input id="edit-pass" type="password" class="form-control"></div>
+    <hr>
+    <div class="mb-3">
+      <label class="fw-bold">電子郵件</label>
+      <div id="email-verified-group" class="hidden"><div class="input-group"><input id="display-email" class="form-control bg-light" readonly><button class="btn btn-outline-primary" type="button" onclick="enableEmailEdit()">更改</button><button class="btn btn-outline-danger" type="button" onclick="deleteEmail()">刪除</button></div></div>
+      <div id="email-edit-group"><div class="input-group"><input id="edit-email" type="email" class="form-control"><button class="btn btn-outline-secondary" type="button" onclick="sendVCode('edit-email')">驗證</button></div><input id="edit-vcode" class="form-control mt-2 hidden" placeholder="驗證碼"></div>
+    </div>
+    <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="edit-notify"><label class="form-check-label">接收系統通知</label></div>
+    <button class="btn btn-primary w-100" onclick="submitProfileEdit()">儲存</button>
+  </div>
+</div></div></div>
+
+<div class="modal fade" id="msgModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
+  <div class="modal-header text-white" id="msg-header"><h5 class="modal-title fw-bold" id="msg-title">系統提示</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body py-4 fs-5 text-center" id="msg-body"></div>
+  <div class="modal-footer justify-content-center border-0"><button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">確定</button></div>
+</div></div></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header bg-warning text-dark"><h5 class="modal-title" id="confirm-title">確認操作</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="confirm-body"></div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="button" class="btn btn-danger" id="btn-confirm-yes">確定</button></div>
+</div></div></div>
+
+<div class="modal fade" id="scoreDetailModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header bg-light"><h5 class="modal-title">碳值明細</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="score-detail-content"></div>
+</div></div></div>
 
 <footer class="bg-light text-center text-secondary py-3 mt-auto border-top">
   <div class="container">
     <small class="d-block mb-1">&copy; 2026 碳減活寶桌遊教案資源網. All rights reserved.</small>
-    <small class="d-block mb-1">
-      <a href="https://sites.google.com/view/ncu-energy/Home" target="_blank" class="text-secondary text-decoration-underline">
-        https://sites.google.com/view/ncu-energy/Home
-      </a>
-    </small>
+    <small class="d-block mb-1"><a href="https://sites.google.com/view/ncu-energy/Home" target="_blank" class="text-secondary text-decoration-underline">官方網站</a></small>
     <small class="d-block">與 Gemini 協作</small>
   </div>
 </footer>

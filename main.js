@@ -1,9 +1,10 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyqRrQGSF9pJuDsM1ueh5d9XyeOTL-RXHGIDrLMmEqXbisD_aQUF_W3aaCeiOmPVoRK/exec"; // 記得要重新新建部署並設為「任何人」
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyqRrQGSF9pJuDsM1ueh5d9XyeOTL-RXHGIDrLMmEqXbisD_aQUF_W3aaCeiOmPVoRK/exec"; 
 
-// 封裝 Fetch，模擬 google.script.run 的行為
+/* ==========================================
+   核心通訊：封裝 Fetch 模擬 google.script.run
+   ========================================== */
 async function callGAS(functionName, args = []) {
     const url = `${GAS_URL}?action=${functionName}`;
-
     try {
         const response = await fetch(url, {
             method: 'POST', 
@@ -19,17 +20,13 @@ async function callGAS(functionName, args = []) {
     }
 }
 
+/* ==========================================
+   全域變數與初始化狀態
+   ========================================== */
 let commentLookup = {};
-
-// 阻止 Bootstrap 搶焦點
-document.addEventListener('focusin', function (e) {
-    if (e.target.closest('.tox-tinymce, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root') !== null) {
-        e.stopImmediatePropagation();
-    }
-});
-
 let user = JSON.parse(localStorage.getItem('tb_user'));
 let currentThreadId = null;
+let replyToFloor = 0;
 let appData = { plans: [], threads: [], announcements: [], versions: [], currentThread: null, myData: {} };
 let pendingTarget = null;
 let onMsgClose = null;
@@ -39,84 +36,148 @@ const FORUM_PER_PAGE = 10;
 const HOME_PER_PAGE = 5;
 
 let curPage = { plans: 1, forum: 1, profile_plans: 1, profile_archived: 1, profile_saved: 1, profile_threads: 1, profile_replies: 1, announcements: 1, versions: 1 };
-
 let filterState = { category: 'all', grades: [], planSearch: '', forumSearch: '' };
 let profileFilterState = { category: 'all', grades: [] }; 
 let profileTab = 'plans'; 
 
-// --- 核心修正：取代原本的 <?= ?> 標籤 ---
+// 解析網址參數 (取代原本 GAS 的 <?= ?>)
 const params = new URLSearchParams(window.location.search);
-const initParams = Object.fromEntries(params.entries()); // 將網址參數轉為物件
-const appUrl = window.location.origin + window.location.pathname; // 獲取目前的 GitHub Pages 網址
+const initParams = Object.fromEntries(params.entries());
+const appUrl = window.location.origin + window.location.pathname;
 
-const msgModalEl = document.getElementById('msgModal');
-if (msgModalEl) {
-    msgModalEl.addEventListener('hidden.bs.modal', () => { 
-        if (onMsgClose) { 
-            onMsgClose(); 
-            onMsgClose = null; 
-        } 
-    });
-}
-
+/* ==========================================
+   UI 輔助小工具 (訊息、Loading、確認框)
+   ========================================== */
 function showMsg(title, text, type = 'info', callback = null) {
-  onMsgClose = callback;
-  document.getElementById('msg-title').textContent = title;
-  document.getElementById('msg-body').innerHTML = text;
-  
-  const header = document.getElementById('msg-header');
-  // 根據 type 設定顏色
-  header.className = 'modal-header text-white ' + (type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning text-dark' : 'bg-secondary');
-  
-  // 修正關閉按鈕顏色
-  const closeBtn = header.querySelector('.btn-close');
-  closeBtn.className = 'btn-close ' + (type === 'warning' ? '' : 'btn-close-white');
-  
-  // msgModalEl 是你在上一段已經定義好的變數
-  new bootstrap.Modal(msgModalEl).show();
+    onMsgClose = callback;
+    const msgModalEl = document.getElementById('msgModal');
+    if (!msgModalEl) return;
+
+    document.getElementById('msg-title').textContent = title;
+    document.getElementById('msg-body').innerHTML = text;
+    
+    const header = document.getElementById('msg-header');
+    header.className = 'modal-header text-white ' + (type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning text-dark' : 'bg-secondary');
+    
+    const closeBtn = header.querySelector('.btn-close');
+    if (closeBtn) closeBtn.className = 'btn-close ' + (type === 'warning' ? '' : 'btn-close-white');
+    
+    bootstrap.Modal.getOrCreateInstance(msgModalEl).show();
 }
 
 function onFailure(error) {
-  toggleLoading(false);
-  // 在 API 模式下，error 可能是 fetch 拋出的錯誤物件
-  const errorMsg = error.message || error.toString();
-  showMsg('系統錯誤', errorMsg, 'error');
+    toggleLoading(false);
+    showMsg('系統錯誤', error.message || error.toString(), 'error');
 }
 
 function toggleLoading(show) {
-  const overlay = document.getElementById('loading-overlay');
-  if (overlay) {
-    overlay.classList.toggle('hidden', !show);
-  }
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.toggle('hidden', !show);
 }
 
 let onConfirmAction = null;
-const confirmModalEl = new bootstrap.Modal(document.getElementById('confirmModal'));
-
-function showConfirm(title, text, callback) {
+window.showConfirm = function(title, text, callback) {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-body').innerHTML = text;
     onConfirmAction = callback;
-    confirmModalEl.show();
-}
+    const confirmModalEl = document.getElementById('confirmModal');
+    bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
+};
 
-document.getElementById('btn-confirm-yes').addEventListener('click', function() {
-    confirmModalEl.hide();
-    if (onConfirmAction) onConfirmAction();
-});
+/* ==========================================
+   初始化與路由導向
+   ========================================== */
+window.onload = function() { 
+    // 綁定確認按鈕
+    const confirmBtn = document.getElementById('btn-confirm-yes');
+    if (confirmBtn) {
+        confirmBtn.onclick = function() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            if (modal) modal.hide();
+            if (onConfirmAction) onConfirmAction();
+        };
+    }
 
-function forceAuth() {
-    showMsg('權限提示', '此內容僅限會員觀看。<br>請先登入或註冊會員。', 'warning', () => {
-        showAuthModal('login');
+    // 監聽訊息視窗關閉
+    const msgModalEl = document.getElementById('msgModal');
+    if (msgModalEl) {
+        msgModalEl.addEventListener('hidden.bs.modal', () => { 
+            if (onMsgClose) { onMsgClose(); onMsgClose = null; } 
+        });
+    }
+
+    updateAuthUI(); 
+    initGradeChecks('plan-grades-check'); // 修正傳參
+    initGradeFilterButtons('plan-grade-filter', filterState, renderPlans);
+    initGradeFilterButtons('profile-grade-filter', profileFilterState, renderProfileList);
+    initTinyMCE();
+    bindRefPreviews();
+
+    // 路由邏輯
+    if (initParams.view && initParams.id) {
+        if (initParams.view === 'thread_detail') {
+            if (!user) { pendingTarget = initParams; forceAuth(); return; }
+            switchView('forum'); loadThreadDetail(initParams.id);
+        } else if (initParams.view === 'plan_detail') {
+            switchView('plans'); jumpToPlan(initParams.id); 
+        }
+    } else if (initParams.view) {
+        switchView(initParams.view);
+    } else { 
+        switchView('home'); 
+    }
+};
+
+/* ==========================================
+   核心功能：UI 切換與網址同步
+   ========================================== */
+window.switchView = function(viewName) {
+    const navbarCollapse = document.getElementById('navbarNav');
+    if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+        bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+    }
+
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+
+    if ((viewName === 'forum' || viewName === 'profile') && !user) {
+        forceAuth(); return;
+    }
+
+    ['home', 'plans', 'forum', 'profile'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        const nav = document.getElementById('nav-' + v);
+        if (el) el.classList.toggle('hidden', v !== viewName);
+        if (nav) nav.classList.toggle('active', v === viewName);
     });
-}
 
-function initGradeChecks(containerId, onChangeFunc) {
+    const url = new URL(window.location);
+    url.searchParams.set('view', viewName);
+    url.searchParams.delete('id');
+    window.history.pushState({ view: viewName }, '', url);
+
+    if (viewName === 'home') loadHome();
+    if (viewName === 'plans') loadPlans();
+    if (viewName === 'forum') {
+        document.getElementById('forum-list-view').classList.remove('hidden');
+        document.getElementById('forum-detail-view').classList.add('hidden');
+        loadForum();
+    }
+    if (viewName === 'profile') loadProfile();
+};
+
+/* ==========================================
+   初始化複選框與篩選按鈕
+   ========================================== */
+function initGradeChecks(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     let html = '';
     for (let i = 1; i <= 6; i++) {
-        html += `<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="${i}" onchange="${onChangeFunc}"> <label class="form-check-label">${i}年級</label></div>`;
+        html += `<div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" value="${i}"> 
+            <label class="form-check-label">${i}年級</label>
+        </div>`;
     }
     container.innerHTML = html;
 }
@@ -131,31 +192,20 @@ function initGradeFilterButtons(containerId, stateObj, renderFunc) {
     container.innerHTML = html;
 
     window.toggleGradeFilter = function(cId, grade) {
-        const isProfile = cId === 'profile-grade-filter';
+        const isProfile = (cId === 'profile-grade-filter');
         const state = isProfile ? profileFilterState : filterState;
         const idx = state.grades.indexOf(grade);
-        if (idx === -1) state.grades.push(grade);
-        else state.grades.splice(idx, 1);
+        if (idx === -1) state.grades.push(grade); else state.grades.splice(idx, 1);
 
         const btns = document.querySelectorAll(`#${cId} button`);
         btns.forEach((btn, index) => {
             const g = index + 1;
-            if (state.grades.includes(g)) {
-                btn.classList.remove('btn-outline-secondary');
-                btn.classList.add('btn-secondary');
-            } else {
-                btn.classList.add('btn-outline-secondary');
-                btn.classList.remove('btn-secondary');
-            }
+            btn.classList.toggle('btn-secondary', state.grades.includes(g));
+            btn.classList.toggle('btn-outline-secondary', !state.grades.includes(g));
         });
 
-        if (isProfile) {
-            curPage['profile_' + profileTab] = 1;
-            renderProfileList();
-        } else {
-            curPage.plans = 1;
-            renderPlans();
-        }
+        if (isProfile) { curPage['profile_' + profileTab] = 1; renderProfileList(); } 
+        else { curPage.plans = 1; renderPlans(); }
     };
 }
 
@@ -639,67 +689,36 @@ function setProfileFilter(cat, btn) {
 /* ==========================================
    檔案發布與編輯 (submitPlan)
    ========================================== */
-function submitPlan() { 
-    const grades = Array.from(document.querySelectorAll('#plan-grades-check input:checked')).map(c => parseInt(c.value)); 
+/* 範例修正：上傳檔案 */
+window.submitPlan = function() {
+    const grades = Array.from(document.querySelectorAll('#plan-grades-check input:checked')).map(c => parseInt(c.value));
     const title = document.getElementById('plan-title').value.trim();
     const link = document.getElementById('plan-link').value.trim();
-    
     const editor = tinymce.get('plan-content');
-    const content = editor ? editor.getContent() : ''; 
-    // 取得純文字並去除 &nbsp; 
+    const content = editor ? editor.getContent() : '';
     const textContent = editor ? editor.getContent({format: 'text'}).replace(/\u00a0/g, ' ').trim() : '';
 
-    // 1. 嚴格驗證邏輯 (完全保留)
-    if (title.length === 0) return showMsg('資料不完整', '請輸入<b>標題</b>', 'warning');
-    if (grades.length === 0) return showMsg('資料不完整', '請至少勾選一個<b>適用年級</b>', 'warning');
+    if (!title) return showMsg('提示', '請輸入標題', 'warning');
+    if (grades.length === 0) return showMsg('提示', '請選擇適用年級', 'warning');
 
-    const hasContent = textContent.length > 0 || content.includes('<img') || content.includes('<iframe');
-    if (!hasContent && link.length === 0) {
-        return showMsg('資料不完整', '「內容簡介」與「雲端連結」請至少填寫一項', 'warning');
-    }
-
-    const id = document.getElementById('plan-id').value; 
-    const data = { 
-        author: user.username, 
-        type: id ? 'edit' : 'new', 
-        access: document.getElementById('plan-access').value, 
-        category: document.getElementById('plan-category').value, 
-        title: title, 
-        content: content, 
-        link: link, 
-        grades: grades 
-    }; 
-
-    // 2. 決定後端函式與參數
-    const handler = id ? 'editPostContent' : 'createPlan'; 
-    const args = id ? [id, data, user.username] : [data]; 
-
+    const id = document.getElementById('plan-id').value;
+    const data = { author: user.username, access: document.getElementById('plan-access').value, category: document.getElementById('plan-category').value, title, content, link, grades };
+    
     toggleLoading(true);
+    const method = id ? 'editPostContent' : 'createPlan';
+    const args = id ? [id, data, user.username] : [data];
 
-    // 3. 呼叫 GAS API (取代原本的 google.script.run)
-    callGAS(handler, args)
-        .then(res => {
-            toggleLoading(false);
-            if (res.status === 'success' || !res.error) {
-                // 關閉 Modal
-                const modalEl = document.getElementById('planModal');
-                const bsModal = bootstrap.Modal.getInstance(modalEl);
-                if (bsModal) bsModal.hide();
-
-                showMsg('成功', id ? '已更新' : '已發布', 'success');
-                
-                // 重新載入列表
-                loadPlans(); 
-
-                // 重置表單狀態
-                document.getElementById('plan-id').value = ''; 
-                document.getElementById('plan-modal-title').textContent = '上傳檔案'; 
-            } else {
-                showMsg('錯誤', res.message || '儲存失敗', 'error');
-            }
-        })
-        .catch(onFailure);
-}
+    callGAS(method, args).then(res => {
+        toggleLoading(false);
+        if (res.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('planModal')).hide();
+            showMsg('成功', '檔案已儲存', 'success');
+            loadPlans();
+        } else {
+            showMsg('失敗', res.message, 'error');
+        }
+    }).catch(onFailure);
+};
 
 /* ==========================================
    發起或編輯討論 (submitThread)
