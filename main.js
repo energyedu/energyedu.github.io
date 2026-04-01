@@ -128,6 +128,16 @@ window.onload = function() {
     }
 };
 
+// 修改後的 forceAuth，確保在提示框關閉後才彈出登入框
+window.forceAuth = function() {
+    showMsg('權限提示', '此內容僅限會員觀看。<br>請先登入或註冊會員。', 'warning', () => {
+        // 延遲 300 毫秒，等提示框完全消失後再開登入框
+        setTimeout(() => {
+            window.showAuthModal('login');
+        }, 300);
+    });
+};
+
 /* ==========================================
    核心功能：UI 切換與網址同步
    ========================================== */
@@ -433,23 +443,26 @@ function loadHome() {
 }
 
 /* ==========================================
-   公告渲染與顯示
+   顯示公告詳情 (showAnnounce)
    ========================================== */
-function showAnnounce(id) {
+window.showAnnounce = function(id) {
+    // 從 appData 中尋找對應 ID 的公告
     const a = appData.announcements.find(x => String(x.id) === String(id));
     if (!a) return;
 
+    // 填入標題與日期
     document.getElementById('ann-title').textContent = a.title;
     document.getElementById('ann-date').textContent = a.startStr;
 
-    // 將網址轉為可點擊連結
+    // 將內容中的網址轉為可點擊連結的輔助函式
     function linkify(text) {
         return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
     }
 
+    // 處理內文：HTML 逸出 -> 網址連結化 -> 換行符轉 <br>
     let contentHtml = linkify(esc(a.body)).replace(/\n/g, '<br>');
 
-    // 處理圖片列表
+    // 如果公告有圖片網址 (以逗號分隔)，則生成 img 標籤
     if (a.imgsRaw) {
         const urls = a.imgsRaw.split(',').map(u => u.trim()).filter(u => u);
         contentHtml += '<div class="mt-3">' + 
@@ -457,9 +470,41 @@ function showAnnounce(id) {
             '</div>';
     }
 
+    // 填入 Modal 並顯示
     document.getElementById('ann-body').innerHTML = contentHtml;
-    new bootstrap.Modal(document.getElementById('announceModal')).show();
+    const announceModalEl = document.getElementById('announceModal');
+    const bsModal = bootstrap.Modal.getOrCreateInstance(announceModalEl);
+    bsModal.show();
+};
+
+/* ==========================================
+   公告渲染與顯示
+   ========================================== */
+function renderAnnouncements() {
+    const list = document.getElementById('home-announce-list');
+    if (!list) return;
+
+    const start = (curPage.announcements - 1) * HOME_PER_PAGE;
+    const items = appData.announcements.slice(start, start + HOME_PER_PAGE);
+
+    renderPagination(appData.announcements.length, curPage.announcements, 'announce-pagination', 'changeAnnouncePage', HOME_PER_PAGE);
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="p-3 text-center">目前無公告</div>';
+    } else {
+        list.innerHTML = items.map(a => `
+            <div class="list-group-item list-group-item-action p-3 cursor-pointer ${a.pin ? 'pinned' : ''}" 
+                 onclick="window.showAnnounce('${a.id}')"> <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1 title text-truncate">
+                        ${a.pin ? '<span class="badge bg-danger me-1">置頂</span>' : ''} ${esc(a.title)}
+                    </h6>
+                    <small class="text-muted">${a.startStr}</small>
+                </div>
+            </div>`).join('');
+    }
 }
+// 務必將 showAnnounce 掛載到 window
+window.showAnnounce = showAnnounce;
 
 function renderAnnouncements() {
     const list = document.getElementById('home-announce-list');
@@ -1087,7 +1132,7 @@ function renderForumList() {
 
             // 定義狀態標籤
             const archiveBadge = t.status === 'archived' ? '<span class="badge bg-warning text-dark ms-1">已典藏</span>' : '';
-            const closedBadge = t.status === 'closed' ? '<span class="badge bg-danger ms-1"><i class="bi bi-lock-fill"></i> 唯讀</span>' : '';
+            const closedBadge = t.status === 'closed' ? '<span class="badge bg-danger ms-1"><i class="bi bi-lock-fill"></i> 此討論區目前僅供瀏覽</span>' : '';
 
             // 點讚與愛心狀態
             const isLiked = user && t.likes && t.likes.includes(user.username);
