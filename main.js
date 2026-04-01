@@ -128,13 +128,15 @@ window.onload = function() {
     }
 };
 
-// 修改後的 forceAuth，確保在提示框關閉後才彈出登入框
+/* ==========================================
+   修正後的權限提示 (forceAuth)
+   ========================================== */
 window.forceAuth = function() {
     showMsg('權限提示', '此內容僅限會員觀看。<br>請先登入或註冊會員。', 'warning', () => {
-        // 延遲 300 毫秒，等提示框完全消失後再開登入框
+        // 使用小延遲避開 Modal 切換動畫衝突
         setTimeout(() => {
             window.showAuthModal('login');
-        }, 300);
+        }, 400);
     });
 };
 
@@ -446,23 +448,25 @@ function loadHome() {
    顯示公告詳情 (showAnnounce)
    ========================================== */
 window.showAnnounce = function(id) {
-    // 從 appData 中尋找對應 ID 的公告
+    // 確保從 appData 中找尋對應的公告
     const a = appData.announcements.find(x => String(x.id) === String(id));
-    if (!a) return;
+    if (!a) {
+        console.error("找不到公告 ID:", id);
+        return;
+    }
 
-    // 填入標題與日期
     document.getElementById('ann-title').textContent = a.title;
     document.getElementById('ann-date').textContent = a.startStr;
 
-    // 將內容中的網址轉為可點擊連結的輔助函式
+    // 將內容中的網址轉為連結
     function linkify(text) {
+        if (!text) return "";
         return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
     }
 
-    // 處理內文：HTML 逸出 -> 網址連結化 -> 換行符轉 <br>
     let contentHtml = linkify(esc(a.body)).replace(/\n/g, '<br>');
 
-    // 如果公告有圖片網址 (以逗號分隔)，則生成 img 標籤
+    // 處理圖片
     if (a.imgsRaw) {
         const urls = a.imgsRaw.split(',').map(u => u.trim()).filter(u => u);
         contentHtml += '<div class="mt-3">' + 
@@ -470,15 +474,16 @@ window.showAnnounce = function(id) {
             '</div>';
     }
 
-    // 填入 Modal 並顯示
     document.getElementById('ann-body').innerHTML = contentHtml;
+    
+    // 取得 Modal 實例並顯示
     const announceModalEl = document.getElementById('announceModal');
     const bsModal = bootstrap.Modal.getOrCreateInstance(announceModalEl);
     bsModal.show();
 };
 
 /* ==========================================
-   公告渲染與顯示
+   修正後的公告列表渲染 (renderAnnouncements)
    ========================================== */
 function renderAnnouncements() {
     const list = document.getElementById('home-announce-list');
@@ -492,9 +497,11 @@ function renderAnnouncements() {
     if (items.length === 0) {
         list.innerHTML = '<div class="p-3 text-center">目前無公告</div>';
     } else {
+        // 關鍵：onclick 呼叫 window.showAnnounce
         list.innerHTML = items.map(a => `
             <div class="list-group-item list-group-item-action p-3 cursor-pointer ${a.pin ? 'pinned' : ''}" 
-                 onclick="window.showAnnounce('${a.id}')"> <div class="d-flex w-100 justify-content-between">
+                 onclick="window.showAnnounce('${a.id}')">
+                <div class="d-flex w-100 justify-content-between">
                     <h6 class="mb-1 title text-truncate">
                         ${a.pin ? '<span class="badge bg-danger me-1">置頂</span>' : ''} ${esc(a.title)}
                     </h6>
@@ -503,8 +510,6 @@ function renderAnnouncements() {
             </div>`).join('');
     }
 }
-// 務必將 showAnnounce 掛載到 window
-window.showAnnounce = showAnnounce;
 
 function renderAnnouncements() {
     const list = document.getElementById('home-announce-list');
