@@ -1,137 +1,140 @@
-  <style>
-    :root { --primary-color: #198754; --primary-gradient: linear-gradient(135deg, #198754 0%, #20c997 100%); --main-font: "Noto Sans TC", sans-serif; }
-    body { background-color: #f8f9fa; font-family: var(--main-font); }
+/* --- 基礎設定與變數 --- */
+:root { 
+    --primary-color: #198754; 
+    --primary-gradient: linear-gradient(135deg, #198754 0%, #20c997 100%); 
+    --main-font: "Noto Sans TC", sans-serif; 
+}
 
-    /* Footer 樣式 */
-    footer { margin-top: auto; background-color: #e9ecef; color: #6c757d; font-size: 0.9rem; }
-    
-    /* 讓背景黑幕完全不佔空間且不擋點擊 */
-    .modal-backdrop { 
-      pointer-events: none !important; 
-      display: none !important; 
-    }
-    .modal { background: rgba(0, 0, 0, 0.5); }
-    #viewPlanModal { z-index: 1055; }
-    #msgModal, #confirmModal { z-index: 1070; }
-    /* 讓 TinyMCE 的彈窗 (插入連結等) 在最上層 */
-    .tox-tinymce-aux { z-index: 3000 !important; }
-    
-    #loading-overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.7);
-      z-index: 3000;
-      display: flex; justify-content: center; align-items: center;
-      backdrop-filter: blur(2px);
-    }
+body { 
+    background-color: #f8f9fa; 
+    font-family: var(--main-font); 
+}
 
-    .hidden { display: none !important; }
-    .cursor-pointer { cursor: pointer; }
-    .hero-section { background: var(--primary-gradient); color: white; padding: 40px 0; margin-bottom: 20px; }
-    .nav-link { cursor: pointer; font-weight: 500; }
-    .nav-link.active { color: var(--primary-color) !important; font-weight: bold; border-bottom: 2px solid var(--primary-color); }
-    /* ★ 修改：登入視窗的分頁標籤 (Pills) 樣式 ★ */
-    .nav-pills .nav-link {
-        color: #495057; /* 未選中時：深灰色 */
-        background-color: transparent;
-        font-weight: bold; /* 字體加粗 */
-        border-radius: 5px;
-        margin: 0 2px;
-    }
-    .nav-pills .nav-link:hover {
-        background-color: #e9ecef; /* 滑鼠移過：淺灰色背景 */
-    }
-    .nav-pills .nav-link.active {
-        color: white !important; /* 選中時：白字 */
-        background-color: #198754 !important; /* 選中時：綠底 */
-    }
+/* --- Layout 樣式 --- */
+footer { 
+    margin-top: auto; 
+    background-color: #e9ecef; 
+    color: #6c757d; 
+    font-size: 0.9rem; 
+}
 
-    .card { border: none; shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .announce-item.pinned .title { color: #d63384; }
-    .dropdown-menu { z-index: 1100; } 
-    
-    .badge-word { background-color: #0d6efd; color: white; } 
-    .badge-ppt { background-color: #d9534f; color: white; } 
-    .badge-public { background-color: #198754; color: white; } 
-    .badge-member { background-color: #fd7e14; color: white; } 
-    
-    /* 按鈕樣式：Outline */
-    .btn-outline-word { color: #0d6efd; border-color: #0d6efd; background-color: transparent; }
-    .btn-outline-word:hover { background-color: #0d6efd; color: white; }
-    
-    .btn-outline-ppt { color: #d9534f; border-color: #d9534f; background-color: transparent; }
-    .btn-outline-ppt:hover { background-color: #d9534f; color: white; }
+#loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 3000;
+    display: flex; justify-content: center; align-items: center;
+    backdrop-filter: blur(2px);
+}
 
-    /* 按鈕樣式：Solid (強制填滿) */
-    .btn-word, .btn-word:active, .btn-word.active { 
-        background-color: #0d6efd !important; 
-        color: white !important; 
-        border-color: #0d6efd !important; 
-    }
-    .btn-ppt, .btn-ppt:active, .btn-ppt.active { 
-        background-color: #d9534f !important; 
-        color: white !important; 
-        border-color: #d9534f !important; 
-    }
+.hidden { display: none !important; }
+.cursor-pointer { cursor: pointer; }
+.hero-section { background: var(--primary-gradient); color: white; padding: 40px 0; margin-bottom: 20px; }
 
-    .pagination { justify-content: center; margin-top: 20px; }
-    .page-item.active .page-link { background-color: var(--primary-color); border-color: var(--primary-color); }
-    
-    .content-preview {
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      min-height: 4.5em; 
-    }
-    .content-preview img { display: none; }
-    .content-preview p { margin-bottom: 0.5rem; }
+/* --- 導覽列與分頁標籤 --- */
+.nav-link { cursor: pointer; font-weight: 500; }
+.nav-link.active { color: var(--primary-color) !important; font-weight: bold; border-bottom: 2px solid var(--primary-color); }
 
-    .stat-card { border-radius: 15px; border: none; color: white; overflow: hidden; position: relative; }
-    .stat-card-blue { background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
-    .stat-card-red { background: linear-gradient(135deg, #d63384 0%, #dc3545 100%); }
-    .stat-icon { font-size: 3rem; opacity: 0.2; position: absolute; right: 10px; bottom: -10px; }
-    .stat-num { font-size: 1.5rem; font-weight: bold; }
+.nav-pills .nav-link {
+    color: #495057;
+    background-color: transparent;
+    font-weight: bold;
+    border-radius: 5px;
+    margin: 0 2px;
+}
+.nav-pills .nav-link:hover { background-color: #e9ecef; }
+.nav-pills .nav-link.active {
+    color: white !important;
+    background-color: #198754 !important;
+}
 
-    /* ★ Dcard 風格 CSS ★ */
-    .floor-tag { font-size: 0.85rem; font-weight: bold; color: #198754; margin-right: 5px; }
-    .sub-comment { margin-left: 20px; padding-left: 15px; border-left: 3px solid #e9ecef; margin-top: 8px; background-color: #f8f9fa; padding: 10px; border-radius: 8px; }
-    .btn-like { cursor: pointer; color: #adb5bd; border: none; background: none; padding: 0; display: inline-flex; align-items: center; }
-    .btn-like.liked { color: #dc3545; }
-    .btn-like:hover { color: #e0245e; }
-    .like-count { font-size: 0.9rem; margin-left: 4px; color: #6c757d; }
-    .reply-ref { color: #0d6efd; font-weight: bold; cursor: pointer; }
-    
-    /* 預覽小視窗樣式 - Dcard 風格 */
-    #ref-preview-box {
-        position: absolute;
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 12px;
-        padding: 12px 16px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        z-index: 10000; 
-        max-width: 350px;
-        min-width: 250px;
-        display: none;
-        line-height: 1.5;
-        /* 關鍵：限制高度並允許內部捲動 */
-        max-height: 300px; 
-        overflow-y: auto; 
-    }
-    #ref-preview-box img { max-width: 100%; border-radius: 4px; }
+/* --- 彈窗 Modal 修正 --- */
+/* 注意：在 GitHub Pages 使用 Bootstrap 5 時，如果背景黑幕遮擋，
+   請確保 index.html 中引用的是 bootstrap.bundle.min.js */
+.modal-backdrop { 
+    pointer-events: none !important; 
+    display: none !important; 
+}
+.modal { background: rgba(0, 0, 0, 0.5); }
+#viewPlanModal { z-index: 1055; }
+#msgModal, #confirmModal { z-index: 1070; }
+.tox-tinymce-aux { z-index: 3000 !important; }
 
-    /* 抖動動畫定義 */
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-8px); }
-      50% { transform: translateX(8px); }
-      75% { transform: translateX(-8px); }
-    }
+/* --- 卡片與統計卡 --- */
+.card { border: none; shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 
-    .shake-error {
-      animation: shake 0.3s ease-in-out;
-      border-color: #dc3545 !important; /* 變紅框 */
-      box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
-    }
-  </style>
+.stat-card { border-radius: 15px; border: none; color: white; overflow: hidden; position: relative; }
+.stat-card-blue { background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); }
+.stat-card-red { background: linear-gradient(135deg, #d63384 0%, #dc3545 100%); }
+.stat-icon { font-size: 3rem; opacity: 0.2; position: absolute; right: 10px; bottom: -10px; }
+.stat-num { font-size: 1.5rem; font-weight: bold; }
+
+/* --- 標籤與按鈕類型 --- */
+.badge-word { background-color: #0d6efd; color: white; } 
+.badge-ppt { background-color: #d9534f; color: white; } 
+.badge-public { background-color: #198754; color: white; } 
+.badge-member { background-color: #fd7e14; color: white; } 
+
+.btn-outline-word { color: #0d6efd; border-color: #0d6efd; }
+.btn-outline-word:hover { background-color: #0d6efd; color: white; }
+.btn-outline-ppt { color: #d9534f; border-color: #d9534f; }
+.btn-outline-ppt:hover { background-color: #d9534f; color: white; }
+
+.btn-word, .btn-word:active, .btn-word.active { 
+    background-color: #0d6efd !important; color: white !important; border-color: #0d6efd !important; 
+}
+.btn-ppt, .btn-ppt:active, .btn-ppt.active { 
+    background-color: #d9534f !important; color: white !important; border-color: #d9534f !important; 
+}
+
+/* --- 內容呈現與分頁 --- */
+.pagination { justify-content: center; margin-top: 20px; }
+.page-item.active .page-link { background-color: var(--primary-color); border-color: var(--primary-color); }
+
+.content-preview {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 4.5em; 
+}
+.content-preview img { display: none; }
+
+/* --- Dcard 風格與預覽視窗 --- */
+.floor-tag { font-size: 0.85rem; font-weight: bold; color: #198754; margin-right: 5px; }
+.sub-comment { margin-left: 20px; padding-left: 15px; border-left: 3px solid #e9ecef; margin-top: 8px; background-color: #f8f9fa; padding: 10px; border-radius: 8px; }
+.btn-like { cursor: pointer; color: #adb5bd; border: none; background: none; padding: 0; display: inline-flex; align-items: center; }
+.btn-like.liked { color: #dc3545; }
+.like-count { font-size: 0.9rem; margin-left: 4px; color: #6c757d; }
+.reply-ref { color: #0d6efd; font-weight: bold; cursor: pointer; }
+
+#ref-preview-box {
+    position: absolute;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 10000; 
+    max-width: 350px;
+    min-width: 250px;
+    display: none;
+    line-height: 1.5;
+    max-height: 300px; 
+    overflow-y: auto; 
+}
+#ref-preview-box img { max-width: 100%; border-radius: 4px; }
+
+/* --- 動畫特效 --- */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    50% { transform: translateX(8px); }
+    75% { transform: translateX(-8px); }
+}
+
+.shake-error {
+    animation: shake 0.3s ease-in-out;
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}
